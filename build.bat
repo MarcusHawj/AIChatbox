@@ -3,14 +3,7 @@ echo ==========================================
 echo   Building Buddy AI — .exe
 echo ==========================================
 
-:: Install PyInstaller if not already installed
 pip install pyinstaller --quiet
-
-:: Build the exe
-:: --onefile        = single .exe file
-:: --windowed       = no console window (GUI only)
-:: --add-data       = bundle intents.json and trained model
-:: --name           = output file name
 
 pyinstaller ^
   --onefile ^
@@ -18,6 +11,10 @@ pyinstaller ^
   --name "BuddyAI" ^
   --add-data "intents.json;." ^
   --add-data "trained_model.pth;." ^
+  --hidden-import customtkinter ^
+  --exclude-module tensorflow ^
+  --exclude-module keras ^
+  --exclude-module tensorboard ^
   app.py
 
 echo.
