@@ -1,0 +1,67 @@
+name: Build Windows
+
+# Builds BuddyAI.exe on Windows. Uploads it as an artifact on every push,
+# and attaches it to a public Release when you push a tag like v1.0.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+# Let the release step upload assets (least-privilege: only contents write)
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Install the project's dependencies plus PyInstaller. The CPU-only
+      # PyTorch index keeps the download (and the final exe) much smaller
+      # than the default CUDA build.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      # Mirror build.bat exactly. On Windows runners --add-data uses ';'.
+      - name: Build exe with PyInstaller
+        run: >
+          pyinstaller
+          --onefile
+          --windowed
+          --name "BuddyAI"
+          --add-data "intents.json;."
+          --add-data "trained_model.pth;."
+          --hidden-import customtkinter
+          --exclude-module tensorflow
+          --exclude-module keras
+          --exclude-module tensorboard
+          app.py
+
+      # Upload the exe as a downloadable artifact (available on every run,
+      # expires after 90 days, requires login to download)
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BuddyAI-windows
+          path: dist/BuddyAI.exe
+
+      # On a version tag, attach the exe to a public Release so anyone can
+      # download it from the Releases page with no login.
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/BuddyAI.exe
